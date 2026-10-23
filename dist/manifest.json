@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Media Downloader",
+  "version": "1.0",
+  "description": "Seamless media extraction.",
+  "permissions": [
+    "scripting",
+    "downloads",
+    "cookies",
+    "declarativeNetRequest",
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Video Downloader"
+  },
+"host_permissions": [
+    "*://*.youtube.com/*",
+    "*://*.googlevideo.com/*",
+    "https://video-downloader-jjay.onrender.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+    "icons": {
+  "128": "download.png"
+},
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "css": ["Floater.css"],
+      "js": ["content.js"]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+#plug-and-play-trigger {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+z-index: 2147483647 !important;
+  padding: 12px 20px;
+  background-color: #0070f3;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+#plug-and-play-modal {
+  position: fixed;
+  bottom: 70px;
+  right: 20px;
+  z-index: 999999;
+  background: #121212;
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #333;
+}
+#extract-btn{
+border: 1px solid transparent;
+color: white;
+background-color: #0070f3;
+width: 100%;
+}
