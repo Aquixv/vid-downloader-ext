@@ -47,11 +47,11 @@ triggerBtn.addEventListener('click', () => {
     if (hasMoved) return; 
     
     // Note: If you want this to work on TikTok/Reddit too, you might want to adjust this '/watch' check later
-    if (!window.location.pathname.includes('/watch')) {
-        alert("Please navigate to a video first.");
+const path = window.location.pathname;
+    if (!path.includes('/watch') && !path.includes('/shorts') && !path.includes('/post')) {
+        alert("Please navigate to a valid YouTube video, Short, or Community Post first.");
         return;
     }
-
     const originalIcon = triggerBtn.innerHTML;
     triggerBtn.innerHTML = '⏳'; 
 
@@ -79,19 +79,47 @@ triggerBtn.addEventListener('click', () => {
 
             if (!res.ok) throw new Error(`Backend rejected request: ${res.status}`);
 
-            const blob = await res.blob();
-            const blobUrl = URL.createObjectURL(blob);
+            // 1. Check what kind of data the backend actually sent back
+            const contentType = res.headers.get("content-type");
 
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = `${videoTitle}.mp4`;
-            document.body.appendChild(a);
-            a.click();
+            if (contentType && contentType.includes("application/json")) {
+                // 2. It's a YouTube Community Post or Image Gallery
+                const data = await res.json();
+                
+                if (data.type === 'gallery' && data.images) {
+                    console.log(`[Content Script] Found ${data.images.length} images. Downloading...`);
+                    
+                    data.images.forEach((base64Data, index) => {
+                        const a = document.createElement('a');
+                        a.href = base64Data;
+                        // Use the post title and an index for clean file names
+                        a.download = `${videoTitle}_image_${index + 1}.jpg`; 
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    });
+                    triggerBtn.innerHTML = '✅';
+                } else {
+                    throw new Error("Invalid gallery data returned.");
+                }
+                
+            } else {
+                // 3. It's a standard Video Blob (the original flow)
+                const blob = await res.blob();
+                const blobUrl = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = `${videoTitle}.mp4`;
+                document.body.appendChild(a);
+                a.click();
+                
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+
+                triggerBtn.innerHTML = '✅';
+            }
             
-            document.body.removeChild(a);
-            URL.revokeObjectURL(blobUrl);
-
-            triggerBtn.innerHTML = '✅';
         } catch (err) {
             console.error("[Content Script] Download failed:", err);
             triggerBtn.innerHTML = '❌';
