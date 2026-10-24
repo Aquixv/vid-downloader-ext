@@ -30,26 +30,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // 3. Handle manual URL submission
-    downloadBtn.addEventListener('click', () => {
+   downloadBtn.addEventListener('click', () => {
         const url = urlInput.value.trim();
         if (!url) return;
 
         statusText.style.display = 'block';
         downloadBtn.disabled = true;
 
-        // Route it through the exact same background flow
-        chrome.runtime.sendMessage({ 
-            action: "FETCH_FROM_API", 
-            payload: { 
-                url: url,
-                title: "Manual_Download" // Generic title for pasted links
-            } 
-        });
+        chrome.runtime.sendMessage({ action: "GET_COOKIES" }, async (response) => {
+            try {
+                const res = await fetch('https://video-downloader-jjay.onrender.com/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url, cookieHeader: response?.cookieString || "" }) 
+                });
 
-        setTimeout(() => {
+                if (!res.ok) throw new Error("Backend error");
+
+                const contentType = res.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    const data = await res.json();
+                    if (data.type === 'gallery' && data.images) {
+                        data.images.forEach((img, i) => chrome.downloads.download({ url: img, filename: `image${i+1}.jpg` }));
+                    }
+                } else {
+                    const blob = await res.blob();
+                    const blobUrl = URL.createObjectURL(blob);
+                    chrome.downloads.download({ url: blobUrl, filename: "YT.mp4" });
+                }
+            } catch (err) {
+                console.error("Download failed:", err);
+            }
+            
             statusText.style.display = 'none';
             downloadBtn.disabled = false;
             urlInput.value = '';
-        }, 2000);
+        });
     });
 });
