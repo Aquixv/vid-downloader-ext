@@ -6,15 +6,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const toggles = {
         youtube: document.getElementById('toggle-youtube'),
         tiktok: document.getElementById('toggle-tiktok'),
-        reddit: document.getElementById('toggle-reddit')
+        reddit: document.getElementById('toggle-reddit'),
+        instagram: document.getElementById('toggle-ig'),
+        twitter: document.getElementById('toggle-twitter')
     };
 
     // 1. Load saved preferences when popup opens
     chrome.storage.local.get(['sitePreferences'], (result) => {
-        const prefs = result.sitePreferences || { youtube: true, tiktok: true, reddit: true };
+        const prefs = result.sitePreferences || { youtube: true, tiktok: true, reddit: true, instagram: true, twitter: true};
         toggles.youtube.checked = prefs.youtube;
         toggles.tiktok.checked = prefs.tiktok;
         toggles.reddit.checked = prefs.reddit;
+        toggles.instagram.checked = prefs.instagram;
+        toggles.twitter.checked = prefs.twitter
     });
 
     // 2. Save preferences when a user clicks a checkbox
@@ -23,7 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const updatedPrefs = {
                 youtube: toggles.youtube.checked,
                 tiktok: toggles.tiktok.checked,
-                reddit: toggles.reddit.checked
+                reddit: toggles.reddit.checked,
+                instagram: toggles.twitter.checked,
+                twitter: toggles.twitter.checked
             };
             chrome.storage.local.set({ sitePreferences: updatedPrefs });
         });
