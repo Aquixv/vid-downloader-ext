@@ -1,6 +1,5 @@
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "GET_COOKIES") {
-        // Fallback to YouTube if no domain is specified
         const targetDomain = message.domain || ".youtube.com"; 
         
         chrome.cookies.getAll({ domain: targetDomain }, (cookieArray) => {

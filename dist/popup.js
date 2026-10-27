@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (parsedUrl.hostname.includes('tiktok.com')) targetDomain = '.tiktok.com';
             else if (parsedUrl.hostname.includes('instagram.com')) targetDomain = '.instagram.com';
             else if (parsedUrl.hostname.includes('reddit.com')) targetDomain = '.reddit.com';
-            else if (parsedUrl.hostname.includes('x.com') || parsedUrl.hostname.includes('twitter.com')) targetDomain = '.twitter.com';
+            else if (parsedUrl.hostname.includes('x.com') || parsedUrl.hostname.includes('x.com')) targetDomain = '.x.com';
         } catch (e) {
             console.error("Invalid URL provided");
             statusText.innerText = "Invalid URL";

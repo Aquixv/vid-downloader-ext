@@ -51,7 +51,7 @@ function injectFloatingButton() {
 
         document.addEventListener('mouseup', () => isBtnDragging = false);
     } 
-    else if (hostname.includes('tiktok.com') || hostname.includes('instagram.com') || hostname.includes('x.com') || hostname.includes('twitter.com') || hostname.includes('reddit.com')) {
+    else if (hostname.includes('tiktok.com') || hostname.includes('instagram.com') || hostname.includes('x.com') || hostname.includes('x.com') || hostname.includes('reddit.com')) {
         
         const feedObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -68,7 +68,7 @@ function injectFloatingButton() {
                                  || activeVideo.parentElement;
                     } 
                     // 2. Twitter / X (Extract from the timestamp link)
-                    else if (hostname.includes('x.com') || hostname.includes('twitter.com')) {
+                    else if (hostname.includes('x.com') || hostname.includes('x.com')) {
                         container = activeVideo.closest('article');
                         const timeLink = container?.querySelector('a[href*="/status/"]');
                         if (timeLink) postUrl = timeLink.href;
@@ -138,7 +138,7 @@ function injectFloatingButton() {
         if (hostname.includes('tiktok.com')) targetDomain = '.tiktok.com';
         else if (hostname.includes('instagram.com')) targetDomain = '.instagram.com';
         else if (hostname.includes('reddit.com')) targetDomain = '.reddit.com';
-        else if (hostname.includes('x.com') || hostname.includes('twitter.com')) targetDomain = '.twitter.com';
+        else if (hostname.includes('x.com') || hostname.includes('x.com')) targetDomain = '.x.com';
 
         chrome.runtime.sendMessage({ action: "GET_COOKIES", domain: targetDomain }, async (response) => {
             if (!response || !response.cookieString) {
