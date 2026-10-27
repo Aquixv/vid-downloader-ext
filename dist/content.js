@@ -42,6 +42,8 @@ function injectFloatingButton() {
                 triggerBtn.style.bottom = 'auto'; triggerBtn.style.right = 'auto';
                 triggerBtn.style.left = `${btnInitialX + dx}px`;
                 triggerBtn.style.top = `${btnInitialY + dy}px`;
+                triggerBtn.style.zIndex = '999999';
+    triggerBtn.style.pointerEvents = 'auto';
             }
         });
 
@@ -59,14 +61,19 @@ function injectFloatingButton() {
                                    || activeVideo.parentElement.parentElement;
 
                     if (container && triggerBtn) {
-                        container.style.position = 'relative'; 
-                        triggerBtn.style.position = 'absolute';
-                        triggerBtn.style.bottom = '20px';
-                        triggerBtn.style.right = '20px';
-                        triggerBtn.style.left = 'auto';
-                        triggerBtn.style.top = 'auto';
-                        container.appendChild(triggerBtn);
-                    }
+                container.style.position = 'relative'; 
+                triggerBtn.style.position = 'absolute';
+                triggerBtn.style.bottom = '20px';
+                triggerBtn.style.right = '20px';
+                triggerBtn.style.left = 'auto';
+                triggerBtn.style.top = 'auto';
+                
+                // Nuke TikTok's z-index hierarchy
+                triggerBtn.style.zIndex = '2147483647'; 
+                
+                // Crucial: Use appendChild, NEVER innerHTML
+                container.appendChild(triggerBtn); 
+            }
                 }
             });
         }, { threshold: 0.6 });
@@ -80,8 +87,12 @@ function injectFloatingButton() {
     }
 
     // --- 3. UNIVERSAL CLICK LISTENER ---
-    triggerBtn.addEventListener('click', () => {
-        if (hasMoved) return; 
+    triggerBtn.addEventListener('click', (e) => {
+        // Prevent TikTok from playing/pausing the video when you click the button
+        e.preventDefault(); 
+        e.stopPropagation();
+
+        if (hasMoved) return;
         
         // Only run the strict path check if we are actually on YouTube
         if (hostname.includes('youtube.com')) {
@@ -153,5 +164,5 @@ function injectFloatingButton() {
 
             setTimeout(() => triggerBtn.innerHTML = originalIcon, 2000);
         });
-    });
+    }, true);
 }
