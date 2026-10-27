@@ -14,16 +14,20 @@ chrome.storage.local.get(['sitePreferences'], (result) => {
 
 function injectFloatingButton() {
     const triggerBtn = document.createElement('button');
-    triggerBtn.innerHTML = `<svg width="30px" height="30px" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L7 11H10V4H14V11H17L12 16Z"/><path d="M4 18H20V20H4V18Z"/></svg>`;
+    // Disabled pointer events on the SVG so the click passes straight to the button
+    triggerBtn.innerHTML = `<svg style="pointer-events: none;" width="30px" height="30px" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L7 11H10V4H14V11H17L12 16Z"/><path d="M4 18H20V20H4V18Z"/></svg>`;
     triggerBtn.id = 'plug-and-play-trigger';
-    document.body.appendChild(triggerBtn);
+    
+    // Force visibility above all overlays
+    triggerBtn.style.zIndex = '2147483647';
+    triggerBtn.style.cursor = 'pointer';
 
     const hostname = window.location.hostname;
-    let activeMediaUrl = window.location.href; // Global tracker for the active URL
+    let activeMediaUrl = window.location.href; 
     let hasMoved = false;
 
-    // --- 1. YOUTUBE BEHAVIOR (Drag and Drop) ---
     if (hostname.includes('youtube.com')) {
+        document.body.appendChild(triggerBtn);
         let isBtnDragging = false, btnStartX, btnStartY, btnInitialX, btnInitialY;
 
         triggerBtn.addEventListener('mousedown', (e) => {
@@ -42,41 +46,36 @@ function injectFloatingButton() {
                 triggerBtn.style.bottom = 'auto'; triggerBtn.style.right = 'auto';
                 triggerBtn.style.left = `${btnInitialX + dx}px`;
                 triggerBtn.style.top = `${btnInitialY + dy}px`;
-                triggerBtn.style.zIndex = '999999';
-    triggerBtn.style.pointerEvents = 'auto';
             }
         });
 
         document.addEventListener('mouseup', () => isBtnDragging = false);
     } 
-    // --- 2. TIKTOK/IG BEHAVIOR (Scroll Tracking) ---
-    else if (hostname.includes('tiktok.com') && !path.includes('/@') || hostname.includes('instagram.com')) {
+    else if (hostname.includes('tiktok.com') || hostname.includes('instagram.com')) {
         const feedObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-                if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+                if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
                     const activeVideo = entry.target;
-                    activeMediaUrl = window.location.href; // Update URL to the scrolled video
+                    activeMediaUrl = window.location.href; 
 
+                    // Target feed items OR direct video pages
                     const container = activeVideo.closest('[data-e2e="recommend-list-item-container"]') 
-                                   || activeVideo.parentElement.parentElement;
+                                   || activeVideo.closest('[data-e2e="browse-video"]')
+                                   || activeVideo.closest('.tiktok-web-player')
+                                   || activeVideo.parentElement;
 
-                    if (container && triggerBtn) {
-                container.style.position = 'relative'; 
-                triggerBtn.style.position = 'absolute';
-                triggerBtn.style.bottom = '20px';
-                triggerBtn.style.right = '20px';
-                triggerBtn.style.left = 'auto';
-                triggerBtn.style.top = 'auto';
-                
-                // Nuke TikTok's z-index hierarchy
-                triggerBtn.style.zIndex = '2147483647'; 
-                
-                // Crucial: Use appendChild, NEVER innerHTML
-                container.appendChild(triggerBtn); 
-            }
+                    if (container) {
+                        container.style.position = 'relative'; 
+                        triggerBtn.style.position = 'absolute';
+                        triggerBtn.style.bottom = '80px'; // Raised slightly to avoid bottom nav bars
+                        triggerBtn.style.right = '20px';
+                        triggerBtn.style.left = 'auto';
+                        triggerBtn.style.top = 'auto';
+                        container.appendChild(triggerBtn);
+                    }
                 }
             });
-        }, { threshold: 0.6 });
+        }, { threshold: 0.5 });
 
         setInterval(() => {
             document.querySelectorAll('video:not([data-observed="true"])').forEach(video => {
@@ -86,29 +85,38 @@ function injectFloatingButton() {
         }, 1000);
     }
 
-    // --- 3. UNIVERSAL CLICK LISTENER ---
-    triggerBtn.addEventListener('click', (e) => {
-        // Prevent TikTok from playing/pausing the video when you click the button
-        e.preventDefault(); 
-        e.stopPropagation();
+    // --- DELEGATED CAPTURE LISTENER (Bypasses React) ---
+    document.body.addEventListener('click', (e) => {
+        const targetBtn = e.target.closest('#plug-and-play-trigger');
+        if (!targetBtn) return; // Ignore clicks anywhere else on the page
 
-        if (hasMoved) return;
+        // Force execution and block React's synthetic event swallowing
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        if (hasMoved) return; 
+        if (targetBtn.innerHTML === '⏳') return;
         
-        // Only run the strict path check if we are actually on YouTube
         if (hostname.includes('youtube.com')) {
             const path = window.location.pathname;
             if (!path.includes('/watch') && !path.includes('/shorts') && !path.includes('/post')) {
                 alert("Please navigate to a valid YouTube video, Short, or Community Post first.");
                 return;
             }
-            activeMediaUrl = window.location.href; // Sync latest YouTube URL
+            activeMediaUrl = window.location.href; 
         }
 
         const originalIcon = triggerBtn.innerHTML;
         triggerBtn.innerHTML = '⏳'; 
         const videoTitle = document.title.replace(/[^\w\s-]/g, '').trim();
 
-        chrome.runtime.sendMessage({ action: "GET_COOKIES" }, async (response) => {
+        // Target the correct cookie jar
+        let targetDomain = '.youtube.com';
+        if (hostname.includes('tiktok.com')) targetDomain = '.tiktok.com';
+        else if (hostname.includes('instagram.com')) targetDomain = '.instagram.com';
+
+        chrome.runtime.sendMessage({ action: "GET_COOKIES", domain: targetDomain }, async (response) => {
             if (!response || !response.cookieString) {
                 console.error("Failed to intercept cookies.");
                 triggerBtn.innerHTML = '❌';
@@ -121,7 +129,7 @@ function injectFloatingButton() {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        url: activeMediaUrl, // Passes the correctly scoped URL
+                        url: activeMediaUrl, 
                         cookieHeader: response.cookieString 
                     }) 
                 });
@@ -164,5 +172,5 @@ function injectFloatingButton() {
 
             setTimeout(() => triggerBtn.innerHTML = originalIcon, 2000);
         });
-    }, true);
+    }, true); // <-- 'true' forces this to run before TikTok's UI captures the click
 }
