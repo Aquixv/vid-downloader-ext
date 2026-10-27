@@ -51,30 +51,45 @@ function injectFloatingButton() {
 
         document.addEventListener('mouseup', () => isBtnDragging = false);
     } 
-    else if (hostname.includes('tiktok.com') || hostname.includes('instagram.com')) {
+    else if (hostname.includes('tiktok.com') || hostname.includes('instagram.com') || hostname.includes('x.com') || hostname.includes('twitter.com') || hostname.includes('reddit.com')) {
+        
         const feedObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
                     const activeVideo = entry.target;
-                    activeMediaUrl = window.location.href; 
+                    let container;
+                    let postUrl = window.location.href; // Default fallback
 
-                    // Target feed items OR direct video pages
-                   // 1. Main Feed
-                    const container = activeVideo.closest('[data-e2e="recommend-list-item-container"]') 
-                                   // 2. Direct Video Page
-                                   || activeVideo.closest('[data-e2e="browse-video"]')
-                                   // 3. Profile/Reposts Grid Modal (Wildcard catch for CSS modules)
-                                   || activeVideo.closest('[class*="DivVideoContainer"]') 
-                                   || activeVideo.closest('[class*="DivVideoWrapper"]')
-                                   // 4. Global Web Player Fallback
-                                   || activeVideo.closest('.tiktok-web-player')
-                                   // 5. Absolute Last Resort
-                                   || activeVideo.parentElement;
+                    // 1. TikTok & Instagram (URL bar usually updates, so fallback is fine)
+                    if (hostname.includes('tiktok.com') || hostname.includes('instagram.com')) {
+                        container = activeVideo.closest('[data-e2e="recommend-list-item-container"]') 
+                                 || activeVideo.closest('[data-e2e="browse-video"]')
+                                 || activeVideo.closest('.tiktok-web-player')
+                                 || activeVideo.parentElement;
+                    } 
+                    // 2. Twitter / X (Extract from the timestamp link)
+                    else if (hostname.includes('x.com') || hostname.includes('twitter.com')) {
+                        container = activeVideo.closest('article');
+                        const timeLink = container?.querySelector('a[href*="/status/"]');
+                        if (timeLink) postUrl = timeLink.href;
+                    } 
+                    // 3. Reddit (Extract from the new UI shreddit-post or old UI comment link)
+                    else if (hostname.includes('reddit.com')) {
+                        container = activeVideo.closest('shreddit-post') || activeVideo.closest('.Post');
+                        if (container && container.getAttribute('permalink')) {
+                            postUrl = `https://www.reddit.com${container.getAttribute('permalink')}`;
+                        } else {
+                            const commentLink = container?.querySelector('a[href*="/comments/"]');
+                            if (commentLink) postUrl = commentLink.href;
+                        }
+                    }
+
+                    activeMediaUrl = postUrl; // Lock in the specific media URL
 
                     if (container) {
                         container.style.position = 'relative'; 
                         triggerBtn.style.position = 'absolute';
-                        triggerBtn.style.bottom = '80px'; // Raised slightly to avoid bottom nav bars
+                        triggerBtn.style.bottom = '80px'; 
                         triggerBtn.style.right = '20px';
                         triggerBtn.style.left = 'auto';
                         triggerBtn.style.top = 'auto';
@@ -122,6 +137,8 @@ function injectFloatingButton() {
         let targetDomain = '.youtube.com';
         if (hostname.includes('tiktok.com')) targetDomain = '.tiktok.com';
         else if (hostname.includes('instagram.com')) targetDomain = '.instagram.com';
+        else if (hostname.includes('reddit.com')) targetDomain = '.reddit.com';
+        else if (hostname.includes('x.com') || hostname.includes('twitter.com')) targetDomain = '.twitter.com';
 
         chrome.runtime.sendMessage({ action: "GET_COOKIES", domain: targetDomain }, async (response) => {
             if (!response || !response.cookieString) {
