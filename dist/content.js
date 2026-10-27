@@ -59,9 +59,16 @@ function injectFloatingButton() {
                     activeMediaUrl = window.location.href; 
 
                     // Target feed items OR direct video pages
+                   // 1. Main Feed
                     const container = activeVideo.closest('[data-e2e="recommend-list-item-container"]') 
+                                   // 2. Direct Video Page
                                    || activeVideo.closest('[data-e2e="browse-video"]')
+                                   // 3. Profile/Reposts Grid Modal (Wildcard catch for CSS modules)
+                                   || activeVideo.closest('[class*="DivVideoContainer"]') 
+                                   || activeVideo.closest('[class*="DivVideoWrapper"]')
+                                   // 4. Global Web Player Fallback
                                    || activeVideo.closest('.tiktok-web-player')
+                                   // 5. Absolute Last Resort
                                    || activeVideo.parentElement;
 
                     if (container) {
@@ -97,7 +104,7 @@ function injectFloatingButton() {
 
         if (hasMoved) return; 
         if (targetBtn.innerHTML === '⏳') return;
-        
+
         if (hostname.includes('youtube.com')) {
             const path = window.location.pathname;
             if (!path.includes('/watch') && !path.includes('/shorts') && !path.includes('/post')) {

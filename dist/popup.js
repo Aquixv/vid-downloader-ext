@@ -13,12 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1. Load saved preferences when popup opens
     chrome.storage.local.get(['sitePreferences'], (result) => {
-        const prefs = result.sitePreferences || { youtube: true, tiktok: true, reddit: true, instagram: true, twitter: true};
+        const prefs = result.sitePreferences || { youtube: true, tiktok: true, reddit: true, instagram: true, twitter: true };
         toggles.youtube.checked = prefs.youtube;
         toggles.tiktok.checked = prefs.tiktok;
         toggles.reddit.checked = prefs.reddit;
         toggles.instagram.checked = prefs.instagram;
-        toggles.twitter.checked = prefs.twitter
+        toggles.twitter.checked = prefs.twitter;
     });
 
     // 2. Save preferences when a user clicks a checkbox
@@ -28,13 +28,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 youtube: toggles.youtube.checked,
                 tiktok: toggles.tiktok.checked,
                 reddit: toggles.reddit.checked,
-                instagram: toggles.twitter.checked,
+                instagram: toggles.instagram.checked, // Fixed the Twitter typo here
                 twitter: toggles.twitter.checked
             };
             chrome.storage.local.set({ sitePreferences: updatedPrefs });
         });
     });
-
     // 3. Handle manual URL submission
    downloadBtn.addEventListener('click', () => {
         const url = urlInput.value.trim();
@@ -43,34 +42,59 @@ document.addEventListener('DOMContentLoaded', () => {
         statusText.style.display = 'block';
         downloadBtn.disabled = true;
 
-        chrome.runtime.sendMessage({ action: "GET_COOKIES" }, async (response) => {
+        // 1. Extract the base domain from the pasted URL
+        let targetDomain = '.youtube.com';
+        try {
+            const parsedUrl = new URL(url);
+            if (parsedUrl.hostname.includes('tiktok.com')) targetDomain = '.tiktok.com';
+            else if (parsedUrl.hostname.includes('instagram.com')) targetDomain = '.instagram.com';
+            else if (parsedUrl.hostname.includes('reddit.com')) targetDomain = '.reddit.com';
+            else if (parsedUrl.hostname.includes('x.com') || parsedUrl.hostname.includes('twitter.com')) targetDomain = '.twitter.com';
+        } catch (e) {
+            console.error("Invalid URL provided");
+            statusText.innerText = "Invalid URL";
+            setTimeout(() => { statusText.style.display = 'none'; statusText.innerText = "Request sent to backend..."; downloadBtn.disabled = false; }, 2000);
+            return;
+        }
+
+        // 2. Ask background.js for the specific cookies
+        chrome.runtime.sendMessage({ action: "GET_COOKIES", domain: targetDomain }, async (response) => {
             try {
                 const res = await fetch('https://video-downloader-jjay.onrender.com/api/download', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: url, cookieHeader: response?.cookieString || "" }) 
+                    body: JSON.stringify({ 
+                        url: url, 
+                        cookieHeader: response?.cookieString || "" 
+                    }) 
                 });
 
                 if (!res.ok) throw new Error("Backend error");
 
                 const contentType = res.headers.get("content-type");
+                
+                // 3. Handle both Galleries and Videos
                 if (contentType && contentType.includes("application/json")) {
                     const data = await res.json();
                     if (data.type === 'gallery' && data.images) {
-                        data.images.forEach((img, i) => chrome.downloads.download({ url: img, filename: `image${i+1}.jpg` }));
+                        data.images.forEach((img, i) => chrome.downloads.download({ url: img, filename: `Gallery_${i+1}.jpg` }));
                     }
                 } else {
                     const blob = await res.blob();
                     const blobUrl = URL.createObjectURL(blob);
-                    chrome.downloads.download({ url: blobUrl, filename: "YT.mp4" });
+                    chrome.downloads.download({ url: blobUrl, filename: "Manual_Download.mp4" });
                 }
             } catch (err) {
                 console.error("Download failed:", err);
+                statusText.innerText = "Download failed";
             }
             
-            statusText.style.display = 'none';
-            downloadBtn.disabled = false;
-            urlInput.value = '';
+            setTimeout(() => {
+                statusText.style.display = 'none';
+                statusText.innerText = "Request sent to backend...";
+                downloadBtn.disabled = false;
+                urlInput.value = '';
+            }, 2000);
         });
     });
 });
