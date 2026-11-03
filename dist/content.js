@@ -14,11 +14,8 @@ chrome.storage.local.get(['sitePreferences'], (result) => {
 
 function injectFloatingButton() {
     const triggerBtn = document.createElement('button');
-    // Disabled pointer events on the SVG so the click passes straight to the button
     triggerBtn.innerHTML = `<svg style="pointer-events: none;" width="30px" height="30px" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L7 11H10V4H14V11H17L12 16Z"/><path d="M4 18H20V20H4V18Z"/></svg>`;
     triggerBtn.id = 'plug-and-play-trigger';
-    
-    // Force visibility above all overlays
     triggerBtn.style.zIndex = '2147483647';
     triggerBtn.style.cursor = 'pointer';
 
@@ -26,54 +23,59 @@ function injectFloatingButton() {
     let activeMediaUrl = window.location.href; 
     let hasMoved = false;
 
+    // --- 1. UNIVERSAL DRAG LOGIC ---
+    let isBtnDragging = false, btnStartX, btnStartY, btnInitialX, btnInitialY;
+
+    triggerBtn.addEventListener('mousedown', (e) => {
+        isBtnDragging = true;
+        hasMoved = false;
+        btnStartX = e.clientX; btnStartY = e.clientY;
+        btnInitialX = triggerBtn.offsetLeft; btnInitialY = triggerBtn.offsetTop;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isBtnDragging) return;
+        const dx = e.clientX - btnStartX; const dy = e.clientY - btnStartY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+            hasMoved = true;
+            triggerBtn.style.bottom = 'auto'; triggerBtn.style.right = 'auto';
+            triggerBtn.style.left = `${btnInitialX + dx}px`;
+            triggerBtn.style.top = `${btnInitialY + dy}px`;
+        }
+    });
+
+    document.addEventListener('mouseup', () => isBtnDragging = false);
+
+    // --- SITE SPECIFIC INJECTIONS ---
     if (hostname.includes('youtube.com')) {
         document.body.appendChild(triggerBtn);
-        let isBtnDragging = false, btnStartX, btnStartY, btnInitialX, btnInitialY;
-
-        triggerBtn.addEventListener('mousedown', (e) => {
-            isBtnDragging = true;
-            hasMoved = false;
-            btnStartX = e.clientX; btnStartY = e.clientY;
-            const rect = triggerBtn.getBoundingClientRect();
-            btnInitialX = rect.left; btnInitialY = rect.top;
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!isBtnDragging) return;
-            const dx = e.clientX - btnStartX; const dy = e.clientY - btnStartY;
-            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-                hasMoved = true;
-                triggerBtn.style.bottom = 'auto'; triggerBtn.style.right = 'auto';
-                triggerBtn.style.left = `${btnInitialX + dx}px`;
-                triggerBtn.style.top = `${btnInitialY + dy}px`;
-            }
-        });
-
-        document.addEventListener('mouseup', () => isBtnDragging = false);
     } 
-    else if (hostname.includes('tiktok.com') || hostname.includes('instagram.com') || hostname.includes('x.com') || hostname.includes('x.com') || hostname.includes('reddit.com')) {
+    else if (hostname.includes('tiktok.com') || hostname.includes('instagram.com') || hostname.includes('x.com') || hostname.includes('reddit.com')) {
         
         const feedObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
                     const activeVideo = entry.target;
                     let container;
-                    let postUrl = window.location.href; // Default fallback
+                    let postUrl = window.location.href; 
 
-                    // 1. TikTok & Instagram (URL bar usually updates, so fallback is fine)
                     if (hostname.includes('tiktok.com') || hostname.includes('instagram.com')) {
                         container = activeVideo.closest('[data-e2e="recommend-list-item-container"]') 
                                  || activeVideo.closest('[data-e2e="browse-video"]')
                                  || activeVideo.closest('.tiktok-web-player')
                                  || activeVideo.parentElement;
+                                 
+                        // 2. TIKTOK URL FIX: Extract the specific video link from the DOM
+                        if (hostname.includes('tiktok.com') && container) {
+                            const videoLink = container.querySelector('a[href*="/video/"]');
+                            if (videoLink) postUrl = videoLink.href;
+                        }
                     } 
-                    // 2. Twitter / X (Extract from the timestamp link)
-                    else if (hostname.includes('x.com') || hostname.includes('x.com')) {
+                    else if (hostname.includes('x.com')) {
                         container = activeVideo.closest('article');
                         const timeLink = container?.querySelector('a[href*="/status/"]');
                         if (timeLink) postUrl = timeLink.href;
                     } 
-                    // 3. Reddit (Extract from the new UI shreddit-post or old UI comment link)
                     else if (hostname.includes('reddit.com')) {
                         container = activeVideo.closest('shreddit-post') || activeVideo.closest('.Post');
                         if (container && container.getAttribute('permalink')) {
@@ -84,7 +86,7 @@ function injectFloatingButton() {
                         }
                     }
 
-                    activeMediaUrl = postUrl; // Lock in the specific media URL
+                    activeMediaUrl = postUrl; 
 
                     if (container) {
                         container.style.position = 'relative'; 
@@ -107,18 +109,27 @@ function injectFloatingButton() {
         }, 1000);
     }
 
-    // --- DELEGATED CAPTURE LISTENER (Bypasses React) ---
+    // --- DELEGATED CAPTURE LISTENER ---
+    let currentAbortController = null;
+
     document.body.addEventListener('click', (e) => {
         const targetBtn = e.target.closest('#plug-and-play-trigger');
-        if (!targetBtn) return; // Ignore clicks anywhere else on the page
+        if (!targetBtn) return; 
 
-        // Force execution and block React's synthetic event swallowing
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
 
         if (hasMoved) return; 
-        if (targetBtn.innerHTML === '⏳') return;
+
+        // 3. CANCELLATION LOGIC
+        if (targetBtn.innerHTML === '⏳') {
+            if (currentAbortController) {
+                currentAbortController.abort();
+                console.log("[Clipper] Download aborted by user.");
+            }
+            return;
+        }
 
         if (hostname.includes('youtube.com')) {
             const path = window.location.pathname;
@@ -133,12 +144,11 @@ function injectFloatingButton() {
         triggerBtn.innerHTML = '⏳'; 
         const videoTitle = document.title.replace(/[^\w\s-]/g, '').trim();
 
-        // Target the correct cookie jar
         let targetDomain = '.youtube.com';
         if (hostname.includes('tiktok.com')) targetDomain = '.tiktok.com';
         else if (hostname.includes('instagram.com')) targetDomain = '.instagram.com';
         else if (hostname.includes('reddit.com')) targetDomain = '.reddit.com';
-        else if (hostname.includes('x.com') || hostname.includes('x.com')) targetDomain = '.x.com';
+        else if (hostname.includes('x.com')) targetDomain = '.x.com';
 
         chrome.runtime.sendMessage({ action: "GET_COOKIES", domain: targetDomain }, async (response) => {
             if (!response || !response.cookieString) {
@@ -148,10 +158,13 @@ function injectFloatingButton() {
                 return;
             }
 
+            currentAbortController = new AbortController();
+
             try {
                 const res = await fetch('https://video-downloader-jjay.onrender.com/api/download', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    signal: currentAbortController.signal,
                     body: JSON.stringify({ 
                         url: activeMediaUrl, 
                         cookieHeader: response.cookieString 
@@ -190,11 +203,15 @@ function injectFloatingButton() {
                     triggerBtn.innerHTML = '✅';
                 }
             } catch (err) {
-                console.error("[Content Script] Download failed:", err);
-                triggerBtn.innerHTML = '❌';
+                if (err.name === 'AbortError') {
+                    triggerBtn.innerHTML = '🛑'; // Indicate cancellation
+                } else {
+                    console.error("[Content Script] Download failed:", err);
+                    triggerBtn.innerHTML = '❌';
+                }
             }
 
             setTimeout(() => triggerBtn.innerHTML = originalIcon, 2000);
         });
-    }, true); // <-- 'true' forces this to run before TikTok's UI captures the click
+    }, true); 
 }

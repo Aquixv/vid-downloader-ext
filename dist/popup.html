@@ -4,13 +4,31 @@
     <meta charset="UTF-8">
     <style>
         body { font-family: system-ui, sans-serif; width: 300px; padding: 15px; margin: 0; background: #1e1e1e; color: #fff; }
-        h3 { margin-top: 0; font-size: 16px; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        h3 { margin-top: 0; font-size: 12px; border-bottom: 1px solid #333; padding-bottom: 8px; }
         .section { margin-bottom: 20px; }
         input[type="text"] { width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; background: #2d2d2d; border: 1px solid #444; color: #fff; border-radius: 4px; }
         button { width: 100%; padding: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         button:hover { background: #0056b3; }
         .toggle-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
         #status { font-size: 12px; color: #4ade80; margin-top: 5px; display: none; }
+        .easy-checkbox {appearance: none;  -webkit-appearance: none; width: 12px; height: 12px; background-color: #2a2a2a; border-radius: 4px; cursor: pointer; display: inline-grid; place-content: center;}
+.easy-checkbox:checked {
+  background-color: #2196F3;      /* Vibrant accent color when ticked */
+  border-color: #2196F3;
+}
+
+/* 5. Create a clean white checkmark inside when ticked */
+.easy-checkbox::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  transform: scale(0);
+  background-color: white;         /* Checkmark color */
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+/* .easy-checkbox:checked::before {
+  transform: scale(1);
+} */
     </style>
 </head>
 <body>
@@ -25,23 +43,23 @@
         <h3>Show Floating Button On:</h3>
         <div class="toggle-row">
             <label for="toggle-youtube">YouTube</label>
-            <input type="checkbox" id="toggle-youtube" checked>
+            <input type="checkbox" class="easy-checkbox" id="toggle-youtube" checked>
         </div>
         <div class="toggle-row">
             <label for="toggle-tiktok">TikTok</label>
-            <input type="checkbox" id="toggle-tiktok" checked>
+            <input type="checkbox" class="easy-checkbox" id="toggle-tiktok" checked>
         </div>
         <div class="toggle-row">
             <label for="toggle-reddit">Reddit</label>
-            <input type="checkbox" id="toggle-reddit" checked>
+            <input type="checkbox" class="easy-checkbox" id="toggle-reddit" checked>
         </div>
         <div class="toggle-row">
             <label for="toggle-ig">Instagram Reels</label>
-            <input type="checkbox" id="toggle-ig" checked>
+            <input type="checkbox" class="easy-checkbox" id="toggle-ig" checked>
         </div>
         <div class="toggle-row">
             <label for="toggle-twitter">Twitter</label>
-            <input type="checkbox" id="toggle-twitter" checked>
+            <input type="checkbox" class="easy-checkbox"id="toggle-twitter" checked>
         </div>
     </div>
     <script src="popup.js"></script>
